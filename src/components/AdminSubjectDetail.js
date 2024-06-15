@@ -1,9 +1,10 @@
 // src/components/AdminSubjectDetail.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes } from 'firebase/storage';
 import { db } from '../firebase';
-import { sanitizeName } from '../utils';
+import { formatFolderName } from '../utils';
 
 const AdminSubjectDetail = () => {
   const { subjectName } = useParams();
@@ -25,15 +26,24 @@ const AdminSubjectDetail = () => {
     fetchProjects();
   }, [subjectName]);
 
+  const createProjectFolder = async (projectName) => {
+    const storage = getStorage();
+    const formattedProjectName = formatFolderName(projectName);
+    const projectFolderRef = ref(storage, `projects/${formattedProjectName}`);
+    await uploadBytes(projectFolderRef, new Blob([''], { type: 'text/plain' })); // Create an empty folder
+  };
+
   const handleCreateProject = async () => {
     try {
       const docRef = await addDoc(collection(db, 'projects'), {
         name: newProject,
         subjectIds: [subjectName],
-        postIds: []
+        postIds: [],
+        status: 'draft'
       });
+      await createProjectFolder(newProject);
       setNewProject('');
-      setProjects([...projects, { id: docRef.id, name: newProject, subjectIds: [subjectName], postIds: [] }]);
+      setProjects([...projects, { id: docRef.id, name: newProject, subjectIds: [subjectName], postIds: [], status: 'draft' }]);
     } catch (error) {
       console.error("Error creating project: ", error);
     }
@@ -49,7 +59,13 @@ const AdminSubjectDetail = () => {
   };
 
   const handleProjectClick = (name) => {
-    navigate(`/admin/projects/${sanitizeName(name)}`);
+    navigate(`/admin/projects/${formatFolderName(name)}`);
+  };
+
+  const handleStatusChange = async (projectId, newStatus) => {
+    const projectRef = doc(db, 'projects', projectId);
+    await updateDoc(projectRef, { status: newStatus });
+    setProjects(projects.map(project => (project.id === projectId ? { ...project, status: newStatus } : project)));
   };
 
   return (
@@ -58,9 +74,14 @@ const AdminSubjectDetail = () => {
       <ul>
         {projects.map(project => (
           <li key={project.id}>
-            {project.name}
+            {project.name} ({project.status})
             <button onClick={() => handleDeleteProject(project.id)}>Delete</button>
             <button onClick={() => handleProjectClick(project.name)}>Enter</button>
+            <select value={project.status} onChange={(e) => handleStatusChange(project.id, e.target.value)}>
+              <option value="draft">Draft</option>
+              <option value="public">Public</option>
+              <option value="archived">Archived</option>
+            </select>
           </li>
         ))}
       </ul>

@@ -1,38 +1,34 @@
 // src/components/AdminSubjects.js
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { sanitizeName } from '../utils';
+import { useNavigate } from 'react-router-dom';
 
 const AdminSubjects = () => {
   const [subjects, setSubjects] = useState([]);
-  const [newSubject, setNewSubject] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSubjects = async () => {
-      const snapshot = await getDocs(collection(db, 'subjects'));
-      setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      try {
+        const subjectsRef = collection(db, 'subjects');
+        const snapshot = await getDocs(subjectsRef);
+        setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        console.error("Error fetching subjects: ", error);
+      }
     };
     fetchSubjects();
   }, []);
 
-  const handleCreateSubject = async () => {
-    await addDoc(collection(db, 'subjects'), { name: newSubject, projectIds: [] });
-    setNewSubject('');
-    // Reload subjects
-    const snapshot = await getDocs(collection(db, 'subjects'));
-    setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  const handleStatusChange = async (subjectId, newStatus) => {
+    const subjectRef = doc(db, 'subjects', subjectId);
+    await updateDoc(subjectRef, { status: newStatus });
+    setSubjects(subjects.map(subject => (subject.id === subjectId ? { ...subject, status: newStatus } : subject)));
   };
 
-  const handleDeleteSubject = async (id) => {
-    await deleteDoc(doc(db, 'subjects', id));
-    setSubjects(subjects.filter(subject => subject.id !== id));
-  };
-
-  const handleSubjectClick = (name) => {
-    navigate(`/admin/${sanitizeName(name)}`);
+  const handleSubjectClick = (subjectName) => {
+    navigate(`/admin/${subjectName}`);
   };
 
   return (
@@ -41,18 +37,16 @@ const AdminSubjects = () => {
       <ul>
         {subjects.map(subject => (
           <li key={subject.id}>
-            {subject.name}
-            <button onClick={() => handleDeleteSubject(subject.id)}>Delete</button>
+            {subject.name} ({subject.status})
             <button onClick={() => handleSubjectClick(subject.name)}>Enter</button>
+            <select value={subject.status} onChange={(e) => handleStatusChange(subject.id, e.target.value)}>
+              <option value="draft">Draft</option>
+              <option value="public">Public</option>
+              <option value="archived">Archived</option>
+            </select>
           </li>
         ))}
       </ul>
-      <input
-        type="text"
-        value={newSubject}
-        onChange={(e) => setNewSubject(e.target.value)}
-      />
-      <button onClick={handleCreateSubject}>Create Subject</button>
     </div>
   );
 };

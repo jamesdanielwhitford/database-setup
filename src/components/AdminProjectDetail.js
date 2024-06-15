@@ -1,9 +1,11 @@
 // src/components/AdminProjectDetail.js
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db } from '../firebase';
 import FileInput from './FileInput';
+import { formatFolderName } from '../utils';
 
 const AdminProjectDetail = () => {
   const { projectName } = useParams();
@@ -15,7 +17,8 @@ const AdminProjectDetail = () => {
     postContentPreview: '',
     link: { text: '', url: '' },
     location: { name: '', coordinates: { lat: 0, lng: 0 } },
-    type: 'image' // default type
+    type: 'image', // default type
+    status: 'draft' // default status
   });
 
   useEffect(() => {
@@ -35,9 +38,37 @@ const AdminProjectDetail = () => {
     fetchPosts();
   }, [projectName]);
 
+  const uploadFile = async (file, path) => {
+    const storage = getStorage();
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  };
+
   const handleCreatePost = async () => {
     try {
-      const newPostWithTimestamp = { ...newPost, projectId: projectName, createdAt: new Date() };
+      const formattedProjectName = formatFolderName(projectName);
+      const formattedPostTitle = formatFolderName(newPost.title);
+      const postFolderPath = `projects/${formattedProjectName}/posts/${formattedPostTitle}`;
+
+      let postContentURL = '';
+      let postContentPreviewURL = '';
+
+      if (newPost.type === 'image' || newPost.type === 'markdown') {
+        postContentURL = await uploadFile(newPost.postContent, `${postFolderPath}/content`);
+        postContentPreviewURL = await uploadFile(newPost.postContentPreview, `${postFolderPath}/preview`);
+      } else if (newPost.type === 'youtube') {
+        postContentURL = newPost.postContent;
+        postContentPreviewURL = await uploadFile(newPost.postContentPreview, `${postFolderPath}/preview`);
+      }
+
+      const newPostWithTimestamp = {
+        ...newPost,
+        postContent: postContentURL,
+        postContentPreview: postContentPreviewURL,
+        projectId: projectName,
+        createdAt: new Date()
+      };
       const docRef = await addDoc(collection(db, 'posts'), newPostWithTimestamp);
       setNewPost({
         title: '',
@@ -46,7 +77,8 @@ const AdminProjectDetail = () => {
         postContentPreview: '',
         link: { text: '', url: '' },
         location: { name: '', coordinates: { lat: 0, lng: 0 } },
-        type: 'image'
+        type: 'image',
+        status: 'draft'
       });
       setPosts([{ id: docRef.id, ...newPostWithTimestamp }, ...posts]);
     } catch (error) {
@@ -84,6 +116,12 @@ const AdminProjectDetail = () => {
 
   const handleTypeChange = (e) => {
     setNewPost({ ...newPost, type: e.target.value });
+  };
+
+  const handlePostStatusChange = async (postId, newStatus) => {
+    const postRef = doc(db, 'posts', postId);
+    await updateDoc(postRef, { status: newStatus });
+    setPosts(posts.map(post => (post.id === postId ? { ...post, status: newStatus } : post)));
   };
 
   const renderContentInputs = () => {
@@ -148,15 +186,6 @@ const AdminProjectDetail = () => {
   return (
     <div>
       <h1>{projectName}</h1>
-      <ul>
-        {posts.map(post => (
-          <li key={post.id}>
-            {post.title}
-            <button onClick={() => handleDeletePost(post.id)}>Delete</button>
-            {/* Additional button or link for editing post */}
-          </li>
-        ))}
-      </ul>
       <div>
         <input
           type="text"
@@ -178,6 +207,11 @@ const AdminProjectDetail = () => {
           <option value="markdown">Markdown</option>
         </select>
         {renderContentInputs()}
+        <select name="status" value={newPost.status} onChange={handleChange}>
+          <option value="draft">Draft</option>
+          <option value="public">Public</option>
+          <option value="archived">Archived</option>
+        </select>
         <input
           type="text"
           placeholder="Link Text"
@@ -215,6 +249,20 @@ const AdminProjectDetail = () => {
         />
         <button onClick={handleCreatePost}>Create Post</button>
       </div>
+      <ul>
+        {posts.map(post => (
+          <li key={post.id}>
+            {post.title} ({post.status})
+            <button onClick={() => handleDeletePost(post.id)}>Delete</button>
+            <select value={post.status} onChange={(e) => handlePostStatusChange(post.id, e.target.value)}>
+              <option value="draft">Draft</option>
+              <option value="public">Public</option>
+              <option value="archived">Archived</option>
+            </select>
+            {/* Additional button or link for editing post */}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
