@@ -49,7 +49,7 @@ const AdminSubjectDetail = () => {
   };
 
   const handleProjectClick = (name) => {
-    navigate(`/admin/${sanitizeName(name)}`);
+    navigate(`/admin/projects/${sanitizeName(name)}`);
   };
 
   return (

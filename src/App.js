@@ -21,8 +21,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/admin/subjects" element={<AdminSubjects />} />
-        <Route path="/admin/subject/:subjectName" element={<SubjectRouteWrapper />} />
-        <Route path="/admin/:projectName" element={<ProjectRouteWrapper />} />
+        <Route path="/admin/:subjectName" element={<SubjectRouteWrapper />} />
+        <Route path="/admin/projects/:projectName" element={<ProjectRouteWrapper />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Router>

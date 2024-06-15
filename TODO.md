@@ -1,0 +1,4 @@
+- Styling for snap-scrolling through content for user 
+- pagination and lazy loading
+- sticky navbar and sticky control bar
+- Setup 

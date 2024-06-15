@@ -32,7 +32,7 @@ const AdminSubjects = () => {
   };
 
   const handleSubjectClick = (name) => {
-    navigate(`/admin/subject/${sanitizeName(name)}`);
+    navigate(`/admin/${sanitizeName(name)}`);
   };
 
   return (
