@@ -1,24 +1,31 @@
-import logo from './logo.svg';
-import './App.css';
+// src/App.js
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes, useParams } from 'react-router-dom';
+import Admin from './components/Admin';
+import AdminSubjects from './components/AdminSubjects';
+import AdminSubjectDetail from './components/AdminSubjectDetail';
+import AdminProjectDetail from './components/AdminProjectDetail';
+
+function ProjectRouteWrapper() {
+  const { projectName } = useParams();
+  return <AdminProjectDetail projectName={projectName} />;
+}
+
+function SubjectRouteWrapper() {
+  const { subjectName } = useParams();
+  return <AdminSubjectDetail subjectName={subjectName} />;
+}
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/admin/subjects" element={<AdminSubjects />} />
+        <Route path="/admin/subject/:subjectName" element={<SubjectRouteWrapper />} />
+        <Route path="/admin/:projectName" element={<ProjectRouteWrapper />} />
+        <Route path="/admin" element={<Admin />} />
+      </Routes>
+    </Router>
   );
 }
 
